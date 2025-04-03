@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 
 // --- Basic Setup ---
 const scene = new THREE.Scene();
@@ -7,6 +8,13 @@ const canvas = document.getElementById('solarSystemCanvas');
 const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
+
+// --- CSS2D Renderer Setup ---
+const labelRenderer = new CSS2DRenderer();
+labelRenderer.setSize(window.innerWidth, window.innerHeight);
+labelRenderer.domElement.style.position = 'absolute';
+labelRenderer.domElement.style.top = '0px';
+document.getElementById('label-container').appendChild(labelRenderer.domElement);
 
 const camera = new THREE.PerspectiveCamera(
     75, // Field of View
@@ -59,6 +67,20 @@ solarSystemData.forEach(data => {
 
     const mesh = new THREE.Mesh(geometry, material);
     mesh.name = data.name; // Assign name for potential future reference
+
+    // --- Create Label ---
+    const labelDiv = document.createElement('div');
+    labelDiv.className = 'planet-label';
+    labelDiv.textContent = data.name;
+    const label = new CSS2DObject(labelDiv);
+    // Position the label slightly above the planet
+    label.position.set(0, data.radius * 1.5, 0); // Adjust Y offset as needed
+    mesh.add(label); // Add label as a child of the mesh
+
+    // --- Click Listener for Focusing ---
+    labelDiv.addEventListener('click', () => {
+        focusOnObject(mesh); // Call focus function when label is clicked
+    });
 
     if (data.isSun) {
         scene.add(mesh);
@@ -125,6 +147,21 @@ function animate() {
 
     // Render the scene
     renderer.render(scene, camera);
+    labelRenderer.render(scene, camera); // Render labels
+}
+
+// --- Function to Focus Camera ---
+const targetPosition = new THREE.Vector3();
+function focusOnObject(object) {
+    // Get the world position of the object
+    object.getWorldPosition(targetPosition);
+
+    // Tell OrbitControls to target this position
+    controls.target.copy(targetPosition);
+
+    // Optional: You might want to move the camera closer or adjust its distance
+    // This requires more complex calculations based on object size and current camera position
+    // For simplicity, we'll just change the look-at point for now.
 }
 
 // --- Handle Window Resize ---
@@ -136,6 +173,7 @@ window.addEventListener('resize', () => {
     // Update renderer size
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(window.devicePixelRatio);
+    labelRenderer.setSize(window.innerWidth, window.innerHeight); // Update label renderer size
 });
 
 // --- Start Animation ---
