@@ -2,6 +2,9 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 
+// --- Texture Loader ---
+const textureLoader = new THREE.TextureLoader();
+
 // --- Basic Setup ---
 const scene = new THREE.Scene();
 const canvas = document.getElementById('solarSystemCanvas');
@@ -118,6 +121,22 @@ solarSystemData.forEach(data => {
     }
 });
 
+// --- Create Theo ---
+const theoTexture = textureLoader.load('images/image.jpg');
+const theoGeometry = new THREE.PlaneGeometry(30, 30); // Make him reasonably large
+const theoMaterial = new THREE.MeshBasicMaterial({ 
+    map: theoTexture, 
+    side: THREE.DoubleSide, // Visible from both sides
+    transparent: true,     // Allow transparency
+    // alphaTest: 0.1      // Optional: only render pixels above a certain alpha threshold
+});
+const theoMesh = new THREE.Mesh(theoGeometry, theoMaterial);
+theoMesh.name = "Theo";
+scene.add(theoMesh);
+
+// Add Theo to objects array for potential interaction (like focus), but handle animation separately
+celestialObjects.push({ mesh: theoMesh, data: { name: 'Theo' }, isTheo: true }); 
+
 
 // --- Animation Loop ---
 const clock = new THREE.Clock(); // For more consistent animation speed (optional but good)
@@ -126,19 +145,43 @@ function animate() {
     requestAnimationFrame(animate);
 
     const delta = clock.getDelta(); // Time elapsed since last frame
+    const elapsedTime = clock.getElapsedTime(); // Total time elapsed
 
     // Update celestial objects
     celestialObjects.forEach(obj => {
-        // Rotation (Spinning on axis)
-        if (obj.data.rotationSpeed) {
-            obj.mesh.rotation.y += obj.data.rotationSpeed; // Simple Y-axis rotation
-            // For more realism, you could introduce axial tilt here:
-            // obj.mesh.rotateOnAxis(new THREE.Vector3(tiltX, tiltY, tiltZ).normalize(), obj.data.rotationSpeed);
-        }
+        if (obj.isTheo) {
+            // --- Theo's Cool Animation ---
+            const orbitRadiusX = 300; // Wider than Neptune
+            const orbitRadiusZ = 200;
+            const speed = 0.1; // How fast he moves
+            const tiltAngle = Math.PI / 6; // Tilt the orbit 30 degrees
 
-        // Orbit (Revolving around the sun)
-        if (obj.pivot && obj.data.orbitalSpeed) {
-            obj.pivot.rotation.y += obj.data.orbitalSpeed * 0.5; // Slow down orbit slightly for visual clarity
+            // Calculate position in a tilted ellipse
+            const angle = elapsedTime * speed;
+            const x = Math.cos(angle) * orbitRadiusX;
+            let z = Math.sin(angle) * orbitRadiusZ;
+            let y = Math.sin(angle) * orbitRadiusZ * Math.sin(tiltAngle); // Apply tilt to Y
+            z = z * Math.cos(tiltAngle); // Adjust Z based on tilt
+
+            obj.mesh.position.set(x, y, z);
+
+            // Gentle spin
+            obj.mesh.rotation.z += 0.005; 
+
+            // Make Theo always face the camera (Billboard effect)
+            obj.mesh.lookAt(camera.position);
+
+        } else {
+            // --- Existing Planet Animation ---
+            // Rotation (Spinning on axis)
+            if (obj.data.rotationSpeed) {
+                obj.mesh.rotation.y += obj.data.rotationSpeed; // Simple Y-axis rotation
+            }
+
+            // Orbit (Revolving around the sun)
+            if (obj.pivot && obj.data.orbitalSpeed) {
+                obj.pivot.rotation.y += obj.data.orbitalSpeed * 0.5; // Slow down orbit slightly
+            }
         }
     });
 
